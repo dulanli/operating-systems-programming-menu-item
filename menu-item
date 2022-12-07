@@ -1,0 +1,141 @@
+#!/bin/bash
+
+mkdir storageTemp           # creating folder storageTemp 
+mkdir deleteTemp            # creating folder deleteTemp
+menuTemp=/home/knoppix/storageTemp/menu.temp.$$        # storing values in menu.txt
+dirTemp=/home/knoppix/deleteTemp/dir.temp.$$           # storing values in dir.txt
+
+function datetime(){        # datetime function
+
+    dialog --title "Date and Time" --msgbox "Today is $(date)" 5 45
+}
+
+
+function show_calendar(){   # show_calendar function
+    
+    dialog --title "Calendar" --calendar "Use arrows to navigate and Click    CANCEL to leave" 0 0
+    
+    # put relevant info in date
+    if [ $? -eq 0 ]         # if OK is pressed
+    then
+    dialog --clear --inputbox "Enter information for the selected date" 10 45
+    # --clear: erase any previous dialog box from the screen
+    fi                      # end of if statement
+
+}
+
+
+function deleting(){      # deleting function
+
+    dialog --backtitle "Press [OK] to select current directory" \
+    --title "Select and Delete file" --inputbox "Input directory path" 10 29  2>"${dirTemp}"            # storing value into dirTemp
+    
+    file=`cat $dirTemp`   # store what inside $dirTemp into file
+    
+    if [ -z $file ]       # if file is empty/null
+    then
+    file=`pwd`/*          # store current path into file
+                          # /*: to get full directory name
+    else                  # if a directory is input      
+    file=$file/*          # store path of file with /* (full dir name)
+    fi                    # end of if statement 
+ 
+    # Making of list to delete
+    for i in $file           # for loop
+    do
+        if [ -f $i ]          # if file exists then..
+        then
+        echo "$i [Delete]" >> /home/knoppix/deleteTemp/list.$$ 
+        # showing directory of file and delete button into the directory
+        fi
+    done    
+
+    dialog --title "Choose file you want to delete" --menu " " 20 60 12 `cat /home/knoppix/deleteTemp/list.$$` 2>/home/knoppix/deleteTemp/refreshlist.$$
+
+    menu=$?    # storing value input into menu
+    
+    # storing what inside refreshlist into filedelete
+    filedelete=`cat /home/knoppix/deleteTemp/refreshlist.$$`
+            
+
+    case $menu in 
+    
+    # if file is selected
+    0) dialog --title "Deleting $filedelete" --yesno "Do you want to proceed?" 10 28
+    
+    if [ $? -eq 0 ]       # if yes is pressed
+    then                  
+    rm -f  $filedelete    # deleting the file
+    fi
+    ;;
+    
+    # if cancel is pressed
+    1)          
+    # need to remove to refresh the list
+    rm -f /home/knoppix/deleteTemp/list.$$  
+    rm -f /home/knoppix/deleteTemp/refreshlist.$$
+    ;;
+    
+    # if an error occurs
+    255)         
+    # need to remove to refresh the list
+    rm -f /home/knoppix/deleteTemp/list.$$  
+    rm -f /home/knoppix/deleteTemp/refreshlist.$$
+         
+    esac
+
+}
+
+while true            # infinite looping
+
+do                    # start of do-while loop 
+    # menu using dialog 
+    dialog --clear --backtitle "Done By Dylan" \
+    --title "Menu-Item" \
+    --menu " > Choose one of the following" 13 38 5 \
+    Date/time "Display date and time" \
+    Calendar "Display calendar" \
+    Delete "Remove files" \
+    Exit "Exit program" 2>"${menuTemp}"
+    # value input stored in menuTemp
+    
+    okcancel=$?             # store values of OK and CANCEL
+
+# value 1 is cancel 
+# value 255 is error
+if [ $okcancel -eq 1 ] || [ $okcancel -eq 255 ]
+then
+    rm -r /home/knoppix/storageTemp/        # deleting folder storageTemp
+    rm -r /home/knoppix/deleteTemp/         # deleting folder storageTemp
+
+    clear       # clear the terminal
+    exit        # exit the program
+fi
+
+
+menu=$(<"${menuTemp}")   # copy value of menuTemp into menu
+
+case $menu in         # switch case
+
+    Date/time)        # calling function datetime if Date/Time is pressed
+    datetime          
+    ;;                # end of case Date/time
+
+    Calendar)         # calling function show_calendar if Calendar is pressed
+    show_calendar
+    ;;                # end of case Calendar
+    
+    Delete)           # calling function delete if Delete is pressed
+    deleting
+    ;;                # end of case Delete
+    
+    Exit)             # Exit program
+    rm -r /home/knoppix/storageTemp/        # deleting folder storageTemp
+    rm -r /home/knoppix/deleteTemp/         # deleting folder deleteTemp
+    clear             # clear the terminal
+    exit              # command to exit the program  
+    ;;                # end of case Exit
+
+esac        # end of switch case
+    
+done        # end of while case
